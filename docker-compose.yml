@@ -1,0 +1,41 @@
+services:
+  hse-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hse-api
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./data:/app/data:ro
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - hse-net
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  hse-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    container_name: hse-ui
+    ports:
+      - "8502:8502"
+    environment:
+      - API_URL=http://hse-api:8002
+    networks:
+      - hse-net
+    depends_on:
+      hse-api:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  hse-net:
+    driver: bridge
