@@ -321,7 +321,11 @@ def calculate_scenario(org: str, measures: list[str]) -> dict:
         cat = m["category"]
         red_pct = m["reduction_pct"]
 
-        cat_viol = int(viol_by_cat.get(cat, 0))
+        # Fuzzy match: "СИЗ" matches "СИЗ / Средства по обеспечению безопасности"
+        cat_viol = 0
+        for real_cat, count in viol_by_cat.items():
+            if cat.lower() in real_cat.lower() or real_cat.lower().startswith(cat.lower()):
+                cat_viol += int(count)
         # Вес категории в общем портфеле нарушений org (если данных нет — берём 5% базово)
         weight = (cat_viol / total_viol) if total_viol > 0 else 0.05
 

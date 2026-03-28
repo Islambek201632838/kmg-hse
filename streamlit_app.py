@@ -461,6 +461,11 @@ with tab3:
         ))
         fig_cm.update_layout(height=420, margin=dict(t=10, b=10))
         st.plotly_chart(fig_cm, use_container_width=True)
+        st.caption(
+            "В мок-данных только 1 организация присутствует в обоих датасетах (инциденты + Коргау). "
+            "Матрица построена по 13 месяцам этой организации. "
+            "В продакшене — сотни организаций, матрица будет точнее."
+        )
 
     st.divider()
 
@@ -578,11 +583,16 @@ with tab4:
         for alert in filtered:
             lvl = alert["level"].lower()
             top_cats = ", ".join(f"{k} ({v})" for k, v in list(alert["top_categories"].items())[:3])
+            extra = ""
+            if alert.get("repeated_violation_reason"):
+                extra += f"<br/>🔄 Повтор: {alert['repeated_violation_reason']}"
+            if alert.get("yoy_reason"):
+                extra += f"<br/>📈 {alert['yoy_reason']}"
             st.markdown(f"""
 <div class="alert-{lvl}">
   <strong>[{alert['level']}] {alert['org']}</strong><br/>
   Нарушений за 30 дней: <strong>{alert['count_30d']}</strong> &nbsp;|&nbsp; Период: {alert['period']}<br/>
-  Топ категории: {top_cats}
+  Топ категории: {top_cats}{extra}
 </div>""", unsafe_allow_html=True)
 
     st.divider()

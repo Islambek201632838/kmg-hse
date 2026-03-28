@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Any
+from typing import Any, Optional
 
 
 class ClassifyRequest(BaseModel):
@@ -20,6 +20,8 @@ class AlertItem(BaseModel):
     count_30d: int
     top_categories: dict[str, int]
     period: str
+    repeated_violation_reason: Optional[str] = None
+    yoy_reason: Optional[str] = None
 
 
 class RiskScoreItem(BaseModel):
