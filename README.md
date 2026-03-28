@@ -22,7 +22,7 @@ AI-аналитический слой поверх двух модулей HSE-
 | F-06b | Сценарный анализ мер контроля (3.1.2) | Высокий | ✅ `predictor.calculate_scenario()` → 9 мер, Pearson r=0.415, `POST /api/predict/scenario` |
 | F-07 | Расчёт экономического эффекта | Средний | ✅ KPI-карточки в PDF и Streamlit: ~7 НС, ~48 микротравм, ~121 млн ₸/год |
 | F-08 | CV-анализ фото с места происшествий | Средний | ✅ `nlp_service.analyze_incident_photo()` → Gemini Vision, `POST /api/incidents/analyze-photo` |
-| F-09 | Экспорт отчётов в PDF | Низкий | ✅ `report_generator.py` → fpdf2, 4 страницы, `GET /api/reports/pdf` |
+| F-09 | Экспорт отчётов в PDF + Excel | Низкий | ✅ PDF: fpdf2, 4 стр. `GET /api/reports/pdf` · Excel: openpyxl, 5 листов `GET /api/reports/excel` |
 
 ### Компонент B — AI-аналитика Карт Коргау
 
@@ -175,7 +175,9 @@ hse/
 | GET | `/api/predict/correlation-matrix` | Матрица: категории нарушений × типы инцидентов |
 | GET | `/api/predict/scenario/measures` | Список доступных мер контроля |
 | POST | `/api/predict/scenario` | Сценарный анализ: снижение инцидентов при внедрении мер |
+| POST | `/api/korgau/classify` | AI-классификация наблюдения по кластерам (F-15) |
 | GET | `/api/reports/pdf` | PDF-отчёт 4 страницы |
+| GET | `/api/reports/excel` | Excel-отчёт 5 листов (KPI, Alerts, Rankings, Risk, Forecast) |
 
 ---
 
@@ -211,10 +213,10 @@ Spearman r = 0.501
 
 | Уровень | Порог | Цвет |
 |---------|-------|------|
-| 🔴 CRITICAL | > 50 нарушений за 30 дней | red |
-| 🟠 HIGH | > 30 нарушений за 30 дней | orange |
-| 🟡 MEDIUM | > 15 нарушений за 30 дней | yellow |
-| 🔵 LOW | > 5 нарушений за 30 дней | blue |
+| 🔴 CRITICAL | > 50 нарушений за 30 дней | Превышение порога x2 |
+| 🟠 HIGH | > 30 нарушений или один тип > 3 раз за 30 дней | Систематическое нарушение |
+| 🟡 MEDIUM | > 15 нарушений или YoY рост > 15% | Тренд ухудшения |
+| 🔵 LOW | > 5 нарушений за 30 дней | Информационное уведомление |
 
 ---
 
@@ -274,3 +276,33 @@ docker compose up --build
 ---
 
 > 🎯 **Целевой результат:** рабочий AI-дашборд, который показывает аналитику прошлых инцидентов, предсказывает будущие риски, генерирует рекомендации и показывает экономический эффект — в понятных единицах: **люди и деньги**.
+
+---
+
+## Обоснование по критериям хакатона (раздел 6 ТЗ)
+
+| Критерий | Вес | Как покрыт | Доказательство |
+|----------|-----|-----------|----------------|
+| **Точность предиктивной модели** | 25% | Prophet с годовой сезонностью + 95% CI. Backtesting: модель обучается на истории, прогноз совпадает с фактом в пределах CI | `/api/predict/forecast` → график факт vs прогноз с CI-лентой в Streamlit Tab 3 |
+| **Качество рекомендаций** | 20% | Gemini генерирует топ-5 рекомендаций с приоритетом, обоснованием и ожидаемым эффектом на основе реальных паттернов (топ-орг, типы, причины) | `/api/incidents/recommendations` → кнопка в Streamlit Tab 1 |
+| **UX дашборда** | 15% | Streamlit 4 таба, 10+ Plotly-графиков (bar, line, pie, heatmap, radar), KPI-карточки, фильтры, parallel loading через ThreadPoolExecutor | Streamlit UI на порту 8502, адаптивный layout="wide" |
+| **Система алертов** | 15% | 4 уровня по ТЗ: CRITICAL (порог x2), HIGH (один тип >3 раз/30 дней), MEDIUM (YoY рост >15%), LOW (информационный). Цветные карточки в Tab 4 | `/api/korgau/alerts` → 57 алертов, поля `repeated_violation_reason`, `yoy_reason` |
+| **Интеграция в HSE-систему** | 15% | FastAPI, 17 REST эндпоинтов, OpenAPI /docs, Docker Compose, JSON in/out, CORS открыт. PDF + Excel экспорт | Swagger UI `/docs`, `docker compose up -d` = готово |
+| **Расчёт экономического эффекта** | 10% | Сценарное моделирование: 9 мер контроля, Pearson r=0.415 → снижение инцидентов → экономия. KPI: ~7 НС, ~48 микротравм, ~121 млн ₸/год | `/api/predict/scenario` + PDF отчёт + Streamlit Tab 3 |
+
+### Архитектура (раздел 5 ТЗ)
+
+| Уровень ТЗ | Компонент ТЗ | Наша реализация |
+|------------|-------------|-----------------|
+| **Уровень данных** | Data Pipeline (ETL) | `data_loader.py`: xlsx → pandas DataFrame. Очистка, обогащение (смены, стаж, флаги). `@lru_cache` = грузится один раз |
+| **Уровень AI** | ML Core + NLP Engine + CV Module | Prophet (forecast), TF-IDF+KMeans (кластеры), Risk Scoring (формула ТЗ), Pearson/Spearman (корреляция), Gemini Flash (NLP + CV) |
+| **Уровень представления** | Dashboard UI + Alert Manager + Report Generator | Streamlit 4 таба + 4-уровневые алерты + PDF/Excel генератор |
+
+### Поток данных (5.1 ТЗ)
+
+| Поток ТЗ | Реализация |
+|----------|-----------|
+| HSE-система → ETL → Data Warehouse | `incidents.xlsx` + `korgau_cards.xlsx` → `data_loader.py` → pandas in-memory |
+| Data Warehouse → ML Core → Модели | pandas → `predictor.py` (Prophet), `incident_analyzer.py` (KMeans), `korgau_analyzer.py` (корреляция) |
+| ML Core → API → Dashboard / Алерты / PDF | FastAPI 17 эндпоинтов → Streamlit (Plotly) + Alert cards + fpdf2/openpyxl |
+| Алерты → уведомления | `/api/korgau/alerts` → Streamlit Tab 4 (Telegram — опционально, не реализовано) |

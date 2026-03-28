@@ -95,6 +95,29 @@ def get_alerts(reference_date: datetime | None = None) -> list[dict]:
         org_violations = recent[recent["_org"] == row["_org"]]
         top_categories = org_violations["_category"].value_counts().head(3).to_dict()
 
+        # F-11 (HIGH): один тип нарушения >3 раз за 30 дней
+        category_counts = org_violations["_category"].value_counts()
+        repeated_reason = None
+        if (category_counts > 3).any() and level not in ("CRITICAL", "HIGH"):
+            level = "HIGH"
+            color = "orange"
+            repeated_reason = f"{category_counts.idxmax()} — {int(category_counts.max())} раз за 30 дней"
+
+        # F-14 (MEDIUM): YoY рост нарушений >15%
+        yoy_reason = None
+        org_all = violations[violations["_org"] == row["_org"]]
+        if len(org_all) > 0:
+            year_ago = reference_date - timedelta(days=365)
+            cur_count = len(org_all[org_all["_date"] >= year_ago])
+            prev_count = len(org_all[(org_all["_date"] >= year_ago - timedelta(days=365)) & (org_all["_date"] < year_ago)])
+            if prev_count > 0:
+                yoy_pct = round((cur_count - prev_count) / prev_count * 100, 1)
+                if yoy_pct > 15:
+                    yoy_reason = f"YoY рост: {yoy_pct}% ({prev_count} → {cur_count})"
+                    if level == "LOW":
+                        level = "MEDIUM"
+                        color = "yellow"
+
         alerts.append({
             "org": row["_org"],
             "level": level,
@@ -102,6 +125,8 @@ def get_alerts(reference_date: datetime | None = None) -> list[dict]:
             "count_30d": int(n),
             "top_categories": top_categories,
             "period": f"{window_start.date()} — {reference_date.date()}",
+            "repeated_violation_reason": repeated_reason,
+            "yoy_reason": yoy_reason,
         })
 
     return sorted(alerts, key=lambda x: x["count_30d"], reverse=True)

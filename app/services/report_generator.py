@@ -243,3 +243,98 @@ def generate_pdf() -> bytes:
         pdf.cell(40, 6, f"{pt['yhat_upper']:.1f}", fill=fill, align="C", ln=True)
 
     return bytes(pdf.output())
+
+
+def generate_excel() -> bytes:
+    """Excel-отчёт: KPI, алерты, рейтинг, риск-скоры, прогноз."""
+    from io import BytesIO
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+    from openpyxl.utils import get_column_letter
+    from app.services.incident_analyzer import get_summary
+    from app.services.korgau_analyzer import get_alerts, get_org_rankings
+    from app.services.predictor import get_risk_scores, get_forecast
+
+    summary = get_summary()
+    alerts = get_alerts()
+    rankings = get_org_rankings()
+    risk_scores = get_risk_scores()
+    forecast = get_forecast(periods=12)
+
+    hdr_fill = PatternFill(start_color="1E3A8A", end_color="1E3A8A", fill_type="solid")
+    hdr_font = Font(bold=True, color="FFFFFF")
+
+    def write_header(ws, row, headers):
+        for col, h in enumerate(headers, 1):
+            c = ws.cell(row=row, column=col, value=h)
+            c.fill, c.font = hdr_fill, hdr_font
+
+    def auto_width(ws):
+        for col in ws.columns:
+            mx = max((len(str(c.value or "")) for c in col), default=0)
+            ws.column_dimensions[get_column_letter(col[0].column)].width = min(mx + 2, 50)
+
+    wb = Workbook()
+
+    # Sheet 1: KPI
+    ws = wb.active
+    ws.title = "KPI"
+    ws["A1"] = "HSE AI Analytics"
+    ws["A1"].font = Font(size=14, bold=True)
+    write_header(ws, 3, ["Метрика", "Значение"])
+    for i, (k, v) in enumerate([
+        ("Всего инцидентов", summary.get("total", 0)),
+        ("НС", summary.get("by_type", {}).get("Несчастный случай", 0)),
+        ("Микротравм", summary.get("by_type", {}).get("Микротравма", 0)),
+        ("MoM %", summary.get("mom_change_pct", 0)),
+    ], 4):
+        ws.cell(row=i, column=1, value=k)
+        ws.cell(row=i, column=2, value=v)
+    auto_width(ws)
+
+    # Sheet 2: Alerts
+    ws2 = wb.create_sheet("Alerts")
+    write_header(ws2, 1, ["Организация", "Уровень", "Нарушений 30д", "Категории"])
+    for i, a in enumerate(alerts[:50], 2):
+        ws2.cell(row=i, column=1, value=a.get("org", ""))
+        ws2.cell(row=i, column=2, value=a.get("level", ""))
+        ws2.cell(row=i, column=3, value=a.get("count_30d", 0))
+        cats = ", ".join(f"{k}({v})" for k, v in list(a.get("top_categories", {}).items())[:3])
+        ws2.cell(row=i, column=4, value=cats)
+    auto_width(ws2)
+
+    # Sheet 3: Rankings
+    ws3 = wb.create_sheet("Rankings")
+    write_header(ws3, 1, ["Организация", "Нарушений", "Violation %", "Compliance %"])
+    for i, r in enumerate(rankings[:30], 2):
+        ws3.cell(row=i, column=1, value=r.get("org", ""))
+        ws3.cell(row=i, column=2, value=r.get("violation_count", 0))
+        ws3.cell(row=i, column=3, value=r.get("violation_rate_pct", 0))
+        ws3.cell(row=i, column=4, value=r.get("compliance_rate_pct", 0))
+    auto_width(ws3)
+
+    # Sheet 4: Risk Scores
+    ws4 = wb.create_sheet("Risk Scores")
+    write_header(ws4, 1, ["Организация", "Score", "Level", "Инцидентов", "Нарушений"])
+    for i, rs in enumerate(risk_scores[:50], 2):
+        ws4.cell(row=i, column=1, value=rs.get("org", ""))
+        ws4.cell(row=i, column=2, value=round(rs.get("risk_score", 0), 1))
+        ws4.cell(row=i, column=3, value=rs.get("risk_level", ""))
+        ws4.cell(row=i, column=4, value=int(rs.get("incident_count", 0)))
+        ws4.cell(row=i, column=5, value=int(rs.get("violation_count", 0)))
+    auto_width(ws4)
+
+    # Sheet 5: Forecast
+    ws5 = wb.create_sheet("Forecast")
+    write_header(ws5, 1, ["Месяц", "Прогноз", "Нижняя граница", "Верхняя граница"])
+    for i, pt in enumerate(forecast.get("forecast", [])[:12], 2):
+        ws5.cell(row=i, column=1, value=str(pt.get("ds", ""))[:10])
+        ws5.cell(row=i, column=2, value=round(pt.get("yhat", 0), 1))
+        ws5.cell(row=i, column=3, value=round(pt.get("yhat_lower", 0), 1))
+        ws5.cell(row=i, column=4, value=round(pt.get("yhat_upper", 0), 1))
+    auto_width(ws5)
+
+    bio = BytesIO()
+    wb.save(bio)
+    bio.seek(0)
+    return bio.getvalue()

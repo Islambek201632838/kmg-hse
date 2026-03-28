@@ -36,3 +36,15 @@ def good_vs_bad():
 @router.get("/correlation")
 def correlation():
     return get_correlation_with_incidents()
+
+
+@router.post("/classify", summary="AI-классификация наблюдения Коргау (F-15)")
+def classify_observation(description: str, obs_type: str = "плохая практика"):
+    """Классифицирует наблюдение по кластерам: СИЗ, высота, LOTO, пожарная и др."""
+    from app.services.nlp_service import classify_korgau_parsed
+    result = classify_korgau_parsed(description, obs_type)
+    return {
+        "cluster": result.get("cluster", "Другое"),
+        "risk_level": result.get("risk_level", "Средний"),
+        "tags": result.get("tags", []),
+    }

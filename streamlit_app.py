@@ -3,6 +3,7 @@ import httpx
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
+from concurrent.futures import ThreadPoolExecutor
 
 import os
 API = os.getenv("API_URL", "http://localhost:8002")
@@ -26,26 +27,36 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-@st.cache_data(ttl=300)
-def api_get(path: str):
+def _raw_get(path: str):
+    """Thread-safe GET without Streamlit calls."""
     try:
-        r = httpx.get(f"{API}{path}", timeout=30)
+        r = httpx.get(f"{API}{path}", timeout=60)
         r.raise_for_status()
         return r.json()
-    except Exception as e:
-        st.error(f"API error {path}: {e}")
+    except Exception:
         return None
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=600)
+def api_get(path: str):
+    return _raw_get(path)
+
+
 def api_post(path: str, payload: dict):
     try:
-        r = httpx.post(f"{API}{path}", json=payload, timeout=30)
+        r = httpx.post(f"{API}{path}", json=payload, timeout=60)
         r.raise_for_status()
         return r.json()
     except Exception as e:
         st.error(f"API error {path}: {e}")
         return None
+
+
+def parallel_get(*paths):
+    """Fetch multiple API paths in parallel (thread-safe)."""
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(_raw_get, p) for p in paths]
+        return [f.result() for f in futures]
 
 
 # ══════════════════════════════════════════════
@@ -66,7 +77,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
 # TAB 1 — Инциденты
 # ══════════════════════════════════════════════
 with tab1:
-    data = api_get("/api/incidents/summary")
+    data, clusters = parallel_get("/api/incidents/summary", "/api/incidents/cause-clusters?n=6")
     if not data:
         st.stop()
 
@@ -114,9 +125,8 @@ with tab1:
     fig_bar.update_layout(height=360, margin=dict(t=10, b=10), showlegend=False)
     st.plotly_chart(fig_bar, use_container_width=True)
 
-    # Cause clusters
+    # Cause clusters (prefetched in parallel)
     st.subheader("Кластеры причин инцидентов (TF-IDF + KMeans)")
-    clusters = api_get("/api/incidents/cause-clusters?n=6")
     if clusters:
         cl_df = pd.DataFrame(clusters)[["label", "count"]].rename(
             columns={"label": "Группа причин", "count": "Кол-во"})
@@ -201,12 +211,15 @@ with tab1:
 # TAB 2 — Коргау
 # ══════════════════════════════════════════════
 with tab2:
+    trends, rankings, gvb, corr = parallel_get(
+        "/api/korgau/trends", "/api/korgau/rankings",
+        "/api/korgau/good-vs-bad", "/api/korgau/correlation",
+    )
     col_l, col_r = st.columns([1, 1])
 
     # Violation trends по организациям (топ-5)
     with col_l:
         st.subheader("Тренд нарушений по организациям")
-        trends = api_get("/api/korgau/trends")
         if trends:
             top5 = sorted(trends, key=lambda x: x["total_violations"], reverse=True)[:5]
             fig_tr = go.Figure()
@@ -223,7 +236,6 @@ with tab2:
     # Org rankings — horizontal bar
     with col_r:
         st.subheader("Рейтинг организаций (% нарушений)")
-        rankings = api_get("/api/korgau/rankings")
         if rankings:
             rank_df = pd.DataFrame(rankings[:15])[["org", "violation_rate_pct"]].sort_values("violation_rate_pct")
             fig_rank = px.bar(rank_df, x="violation_rate_pct", y="org", orientation="h",
@@ -236,7 +248,6 @@ with tab2:
 
     # Category breakdown — stacked bar (good vs bad)
     st.subheader("Хорошие vs плохие практики по категориям")
-    gvb = api_get("/api/korgau/good-vs-bad")
     if gvb:
         all_cats = list(set(list(gvb["bad"].keys()) + list(gvb["good"].keys())))
         gvb_df = pd.DataFrame({
@@ -255,7 +266,7 @@ with tab2:
         st.plotly_chart(fig_gvb, use_container_width=True)
 
     # Correlation with incidents
-    corr = api_get("/api/korgau/correlation")
+    # corr already fetched in parallel above
     if corr and corr.get("pearson_r") is not None:
         st.divider()
         st.subheader("Корреляция: нарушения Коргау ↔ инциденты")
@@ -269,8 +280,11 @@ with tab2:
 # TAB 3 — Предикт
 # ══════════════════════════════════════════════
 with tab3:
+    fc, rs, cm, measures_data = parallel_get(
+        "/api/predict/forecast", "/api/predict/risk-scores",
+        "/api/predict/correlation-matrix", "/api/predict/scenario/measures",
+    )
     st.subheader("🔮 Prophet: прогноз инцидентов на 12 месяцев")
-    fc = api_get("/api/predict/forecast")
     if fc and "forecast" in fc:
         hist_df = pd.DataFrame(fc["history"])
         fut_df  = pd.DataFrame(fc["forecast"])
@@ -310,7 +324,7 @@ with tab3:
 
     # Risk Scores — heatmap / таблица
     st.subheader("Риск-скоринг организаций")
-    rs = api_get("/api/predict/risk-scores")
+    # rs already fetched in parallel above
     if rs:
         rs_df = pd.DataFrame(rs)
 
@@ -346,7 +360,7 @@ with tab3:
 
     # Correlation Matrix
     st.subheader("Матрица корреляций: категории нарушений × типы инцидентов")
-    cm = api_get("/api/predict/correlation-matrix")
+    # cm already fetched in parallel above
     if cm and cm.get("matrix"):
         matrix_data = cm["matrix"]
         inc_types = cm["incident_types"]
@@ -369,7 +383,7 @@ with tab3:
     st.caption("Расчёт изменения вероятности инцидентов при внедрении мер (Pearson r = 0.415)")
 
     # Получаем список доступных мер и организаций
-    measures_data = api_get("/api/predict/scenario/measures")
+    # measures_data already fetched in parallel above
     summary_data  = api_get("/api/incidents/summary")
 
     if measures_data and summary_data:
