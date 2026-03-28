@@ -135,76 +135,75 @@ with tab1:
         fig_cl.update_layout(height=280, margin=dict(t=10, b=10))
         st.plotly_chart(fig_cl, use_container_width=True)
 
-    # NLP классификатор
+    # Объединённый анализ: текст + фото
     st.divider()
-    st.subheader("🤖 NLP-классификатор инцидентов (Gemini)")
-    txt = st.text_area("Описание инцидента:", height=80,
-                       placeholder="Работник поскользнулся на мокром полу...")
-    if st.button("Классифицировать", type="primary"):
-        if txt.strip():
-            with st.spinner("Gemini анализирует..."):
-                result = api_post("/api/incidents/classify", {"description": txt})
-            if result:
+    st.subheader("🤖 AI-анализ инцидента (текст и/или фото)")
+    st.caption("Опишите инцидент текстом, загрузите фото — или оба варианта")
+
+    col_input_l, col_input_r = st.columns(2)
+    with col_input_l:
+        incident_text = st.text_area("Описание инцидента:", height=100,
+                                     placeholder="Работник поскользнулся на мокром полу...")
+    with col_input_r:
+        uploaded = st.file_uploader("Фото с места инцидента",
+                                    type=["jpg", "jpeg", "png", "webp"])
+
+    has_text = incident_text and incident_text.strip()
+    has_photo = uploaded is not None
+
+    if st.button("Анализировать", type="primary", disabled=not (has_text or has_photo)):
+        with st.spinner("Gemini анализирует..."):
+            try:
+                files = {}
+                form_data = {}
+                if has_text:
+                    form_data["description"] = incident_text.strip()
+                if has_photo:
+                    files["file"] = (uploaded.name, uploaded.getvalue(), uploaded.type)
+
+                r = httpx.post(f"{API}/api/incidents/analyze",
+                               data=form_data, files=files if files else None, timeout=60)
+                r.raise_for_status()
+                result = r.json()
+            except Exception as e:
+                st.error(f"Ошибка: {e}")
+                result = None
+
+        if result:
+            # NLP результат
+            if result.get("nlp"):
+                nlp = result["nlp"]
+                st.markdown("#### 📝 NLP-классификация текста")
                 r1, r2, r3 = st.columns(3)
-                r1.metric("Тип", result["type"])
-                r2.metric("Тяжесть", result["severity"])
-                r3.metric("Корневая причина", result["root_cause_category"])
-                st.info(result["summary"])
+                r1.metric("Тип", nlp.get("type", "—"))
+                r2.metric("Тяжесть", nlp.get("severity", "—"))
+                r3.metric("Причина", nlp.get("root_cause_category", "—"))
+                st.info(nlp.get("summary", ""))
 
-    # CV-анализ фото (F-08)
-    st.divider()
-    st.subheader("📷 CV-анализ фото с места происшествия (Gemini Vision)")
-    uploaded = st.file_uploader(
-        "Загрузить фото с места инцидента",
-        type=["jpg", "jpeg", "png", "webp"],
-        help="Gemini проанализирует фото и выявит нарушения, отсутствующие СИЗ и опасные условия"
-    )
-    if uploaded and st.button("Анализировать фото", type="primary"):
-        col_img, col_res = st.columns([1, 1])
-        with col_img:
-            st.image(uploaded, caption="Загруженное фото", use_container_width=True)
-        with col_res:
-            with st.spinner("Gemini Vision анализирует фото..."):
-                try:
-                    r = httpx.post(
-                        f"{API}/api/incidents/analyze-photo",
-                        files={"file": (uploaded.name, uploaded.getvalue(), uploaded.type)},
-                        timeout=60,
-                    )
-                    r.raise_for_status()
-                    cv = r.json()
-                except Exception as e:
-                    st.error(f"Ошибка: {e}")
-                    cv = None
+            # CV результат
+            if result.get("cv"):
+                cv = result["cv"]
+                st.markdown("#### 📷 CV-анализ фото")
 
-            if cv:
-                level_colors = {
-                    "Критический": "🔴", "Высокий": "🟠",
-                    "Средний": "🟡", "Низкий": "🟢", "Неизвестно": "⚪"
-                }
-                lvl = cv.get("risk_level", "Неизвестно")
-                st.markdown(f"### {level_colors.get(lvl, '⚪')} Уровень риска: **{lvl}**")
-                st.info(cv.get("summary", ""))
+                col_img, col_res = st.columns([1, 1])
+                with col_img:
+                    st.image(uploaded, caption="Загруженное фото", use_container_width=True)
+                with col_res:
+                    level_colors = {"Критический": "🔴", "Высокий": "🟠",
+                                    "Средний": "🟡", "Низкий": "🟢", "Неизвестно": "⚪"}
+                    lvl = cv.get("risk_level", "Неизвестно")
+                    st.markdown(f"**{level_colors.get(lvl, '⚪')} Уровень риска: {lvl}**")
+                    st.info(cv.get("summary", ""))
 
-                if cv.get("violations"):
-                    st.markdown("**Выявленные нарушения:**")
-                    for v in cv["violations"]:
-                        st.error(f"• **{v['type']}** — {v['description']}")
-
-                if cv.get("missing_ppe"):
-                    st.markdown("**Отсутствующие СИЗ:**")
-                    for p in cv["missing_ppe"]:
-                        st.warning(f"• {p}")
-
-                if cv.get("unsafe_conditions"):
-                    st.markdown("**Опасные условия:**")
-                    for c in cv["unsafe_conditions"]:
-                        st.warning(f"• {c}")
-
-                if cv.get("recommendations"):
-                    st.markdown("**Рекомендации:**")
-                    for rec in cv["recommendations"]:
-                        st.success(f"• {rec}")
+                    if cv.get("violations"):
+                        for v in cv["violations"]:
+                            st.error(f"• **{v['type']}** — {v['description']}")
+                    if cv.get("missing_ppe"):
+                        for p in cv["missing_ppe"]:
+                            st.warning(f"• СИЗ: {p}")
+                    if cv.get("recommendations"):
+                        for rec in cv["recommendations"]:
+                            st.success(f"• {rec}")
 
 
 # ══════════════════════════════════════════════
@@ -274,6 +273,93 @@ with tab2:
         m1.metric("Pearson r", corr["pearson_r"])
         m2.metric("Spearman r", corr["spearman_r"])
         m3.metric("Точек анализа", corr["n_points"])
+
+        # Автоматическая интерпретация
+        pr = corr["pearson_r"]
+        sr = corr["spearman_r"]
+        n = corr["n_points"]
+
+        if abs(pr) >= 0.7:
+            strength = "сильная"
+        elif abs(pr) >= 0.4:
+            strength = "умеренная"
+        elif abs(pr) >= 0.2:
+            strength = "слабая"
+        else:
+            strength = "очень слабая"
+
+        direction = "прямая (больше нарушений → больше инцидентов)" if pr > 0 else "обратная"
+        variance = round(pr ** 2 * 100, 1)
+
+        st.info(
+            f"**Простыми словами:** в организациях где больше нарушений по Коргау — "
+            f"происходит больше реальных инцидентов. Связь **{strength}** ({variance}%).\n\n"
+            f"Если в организации часто фиксируют нарушения на аудитах, "
+            f"там выше шанс реального происшествия. "
+            f"Анализ по **{n} точкам данных**.\n\n"
+            f"⚠️ Корреляция ≠ причинность — но закономерность чёткая."
+        )
+
+        # Scatter plot + выбросы
+        if corr.get("scatter_data"):
+            scatter_df = pd.DataFrame(corr["scatter_data"])
+            if not scatter_df.empty and len(scatter_df) > 3:
+                import numpy as np
+
+                fig_sc = go.Figure()
+
+                # Точки с подписями
+                fig_sc.add_trace(go.Scatter(
+                    x=scatter_df["violations"], y=scatter_df["incidents"],
+                    mode="markers",
+                    marker=dict(size=10, color="#1e3a8a", opacity=0.8,
+                                line=dict(width=1, color="white")),
+                    text=scatter_df.get("label", scatter_df["_org"]),
+                    hovertemplate="<b>%{text}</b><br>Нарушений: %{x}<br>Инцидентов: %{y}<extra></extra>",
+                    showlegend=False,
+                ))
+
+                # Линия тренда (numpy polyfit)
+                x_vals = scatter_df["violations"].values.astype(float)
+                y_vals = scatter_df["incidents"].values.astype(float)
+                if len(x_vals) >= 3:
+                    slope, intercept = np.polyfit(x_vals, y_vals, 1)
+                    x_line = np.linspace(x_vals.min(), x_vals.max(), 50)
+                    y_line = slope * x_line + intercept
+                    fig_sc.add_trace(go.Scatter(
+                        x=x_line, y=y_line, mode="lines",
+                        line=dict(color="#ef4444", width=2, dash="dash"),
+                        name=f"Тренд (slope={slope:.2f})",
+                    ))
+
+                n_orgs = scatter_df["_org"].nunique()
+                fig_sc.update_layout(
+                    height=400, margin=dict(t=30, b=50, l=50, r=20),
+                    title=f"Связь: нарушений больше → инцидентов больше ({len(scatter_df)} точек, {n_orgs} орг.)",
+                    xaxis_title="Нарушений Коргау", yaxis_title="Инцидентов",
+                )
+                if n_orgs == 1:
+                    st.caption(f"В мок-данных только **{scatter_df['_org'].iloc[0]}** присутствует в обоих датасетах. "
+                               f"Каждая точка = один месяц. В продакшене будет больше организаций.")
+                st.plotly_chart(fig_sc, use_container_width=True)
+
+                # Найти выбросы (>2 std от среднего)
+                mean_v = scatter_df["violations"].mean()
+                std_v = scatter_df["violations"].std()
+                mean_i = scatter_df["incidents"].mean()
+                std_i = scatter_df["incidents"].std()
+
+                outliers = scatter_df[
+                    (scatter_df["violations"] > mean_v + 2 * std_v) |
+                    (scatter_df["incidents"] > mean_i + 2 * std_i)
+                ]
+                if not outliers.empty:
+                    st.warning(
+                        f"**Выбросы ({len(outliers)} точек):** организации с аномально высокими показателями "
+                        f"— они ломают линейность (Pearson), но не влияют на ранговую связь (Spearman)."
+                    )
+                    for _, row in outliers.iterrows():
+                        st.caption(f"• **{row['_org']}** — {int(row['violations'])} нарушений, {int(row['incidents'])} инцидентов")
 
 
 # ══════════════════════════════════════════════
@@ -501,18 +587,34 @@ with tab4:
 
     st.divider()
 
-    # Кнопка скачать PDF
-    st.subheader("📄 Скачать полный PDF-отчёт")
-    if st.button("Сгенерировать и скачать PDF", type="primary"):
-        with st.spinner("Генерируем PDF..."):
-            try:
-                r = httpx.get(f"{API}/api/reports/pdf", timeout=60)
-                r.raise_for_status()
-                st.download_button(
-                    label="Скачать HSE_Report.pdf",
-                    data=r.content,
-                    file_name=f"HSE_Report_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.pdf",
-                    mime="application/pdf",
-                )
-            except Exception as e:
-                st.error(f"Ошибка генерации PDF: {e}")
+    # Кнопки скачать отчёты
+    st.subheader("📄 Скачать отчёты")
+    col_pdf, col_xlsx = st.columns(2)
+    with col_pdf:
+        if st.button("Сгенерировать PDF", type="primary"):
+            with st.spinner("Генерируем PDF..."):
+                try:
+                    r = httpx.get(f"{API}/api/reports/pdf", timeout=60)
+                    r.raise_for_status()
+                    st.download_button(
+                        label="Скачать HSE_Report.pdf",
+                        data=r.content,
+                        file_name=f"HSE_Report_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.pdf",
+                        mime="application/pdf",
+                    )
+                except Exception as e:
+                    st.error(f"Ошибка PDF: {e}")
+    with col_xlsx:
+        if st.button("Сгенерировать Excel"):
+            with st.spinner("Генерируем Excel..."):
+                try:
+                    r = httpx.get(f"{API}/api/reports/excel", timeout=60)
+                    r.raise_for_status()
+                    st.download_button(
+                        label="Скачать HSE_Report.xlsx",
+                        data=r.content,
+                        file_name=f"HSE_Report_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    )
+                except Exception as e:
+                    st.error(f"Ошибка Excel: {e}")

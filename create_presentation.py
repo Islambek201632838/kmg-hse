@@ -100,6 +100,16 @@ def header_bar(slide, title: str, subtitle: str = ""):
             font_size=14, color=RGBColor(0xba, 0xd4, 0xf8))
 
 
+def footer(slide, page_num: int, total: int):
+    """Нижняя строка со ссылкой на Streamlit + номер слайда."""
+    txt(slide, "http://89.207.255.254:8502",
+        Inches(0.3), Inches(7.1), Inches(5), Inches(0.3),
+        font_size=10, color=C_GRAY, italic=True)
+    txt(slide, f"{page_num} / {total}",
+        Inches(12.0), Inches(7.1), Inches(1.2), Inches(0.3),
+        font_size=10, color=C_GRAY, align=PP_ALIGN.RIGHT)
+
+
 def kpi_box(slide, value: str, label: str,
             x, y, w=Inches(2.5), h=Inches(1.4),
             bg: RGBColor = C_DARK_BLUE):
@@ -153,6 +163,7 @@ def slide_title(prs):
     txt(sl, "FastAPI  •  Prophet  •  Gemini 2.0 Flash  •  Streamlit  •  Docker",
         Inches(0.5), Inches(6.4), Inches(12), Inches(0.5),
         font_size=13, color=RGBColor(0x64, 0x74, 0x8b), align=PP_ALIGN.CENTER)
+    footer(sl, 1, TOTAL)
 
 
 def slide_problem(prs):
@@ -162,45 +173,40 @@ def slide_problem(prs):
     header_bar(sl, "Проблема: реактивный подход к безопасности",
                "Текущее состояние охраны труда в нефтегазовой отрасли")
 
-    # 3 колонки — боль
+    # 3 KPI-бокса с правильными отступами
     cols = [
-        ("18\nНС/год",    "Несчастных\nслучаев",       C_RED),
-        ("120\nмикротравм", "Ежегодно",                C_AMBER),
-        ("72 часа",       "Среднее время\nреагирования", C_BLUE),
+        ("18 НС/год",      "Несчастных случаев",        C_RED),
+        ("120 микротравм",  "Ежегодно",                  C_AMBER),
+        ("72 часа",         "Среднее время реагирования", C_BLUE),
     ]
     for i, (val, lbl, color) in enumerate(cols):
-        x = Inches(0.5 + i * 4.2)
-        kpi_box(sl, val, lbl, x, Inches(1.6), Inches(3.8), Inches(1.6), bg=color)
+        x = Inches(0.3 + i * 4.25)
+        kpi_box(sl, val, lbl, x, Inches(1.5), Inches(3.95), Inches(1.4), bg=color)
 
-    # Боли
-    pain_y = Inches(3.4)
-    rect(sl, Inches(0.4), pain_y, Inches(12.5), Inches(3.6), C_WHITE)
+    # Ключевые проблемы
+    rect(sl, Inches(0.3), Inches(3.1), Inches(12.73), Inches(3.4), C_WHITE)
 
-    txb = sl.shapes.add_textbox(Inches(0.7), pain_y + Inches(0.15),
-                                Inches(12), Inches(3.2))
-    tf = txb.text_frame
-    tf.word_wrap = True
-    p = tf.paragraphs[0]
-    p.add_run().text = "Ключевые проблемы"
-    p.runs[0].font.size  = Pt(18)
-    p.runs[0].font.bold  = True
-    p.runs[0].font.color.rgb = C_DARK_BLUE
+    txt(sl, "Ключевые проблемы", Inches(0.5), Inches(3.2), Inches(6), Inches(0.4),
+        font_size=16, bold=True, color=C_DARK_BLUE)
 
     items = [
-        "❌  Нет предиктивной аналитики — инциденты расследуются постфактум",
-        "❌  Данные Карт Коргау и происшествий не связаны между собой",
-        "❌  Ручной анализ сотен наблюдений занимает дни",
-        "❌  Экономический эффект мер безопасности не рассчитывается",
-        "❌  350 опасных ситуаций в год остаются без превентивных мер",
+        "Нет предиктивной аналитики — инциденты расследуются постфактум",
+        "Данные Карт Коргау и происшествий не связаны между собой",
+        "Ручной анализ сотен наблюдений занимает дни",
+        "Экономический эффект мер безопасности не рассчитывается",
+        "350 опасных ситуаций в год остаются без превентивных мер",
     ]
-    for item in items:
-        add_bullet(tf, item, size=15, color=C_DARK)
+    for i, item in enumerate(items):
+        ty = Inches(3.65 + i * 0.55)
+        txt(sl, f"❌  {item}", Inches(0.5), ty, Inches(12), Inches(0.45),
+            font_size=13, color=C_DARK)
 
-    # Итог
-    rect(sl, Inches(0.4), Inches(6.8), Inches(12.5), Inches(0.45), C_RED)
-    txt(sl, "Потери: ~200 млн ₸/год  |  Цена бездействия растёт",
-        Inches(0.4), Inches(6.8), Inches(12.5), Inches(0.45),
+    # Итоговый баннер
+    rect(sl, Inches(0.3), Inches(6.65), Inches(12.73), Inches(0.5), C_RED)
+    txt(sl, "Потери: ~200 млн ₸/год   |   Цена бездействия растёт",
+        Inches(0.3), Inches(6.68), Inches(12.73), Inches(0.45),
         font_size=15, bold=True, color=C_WHITE, align=PP_ALIGN.CENTER)
+    footer(sl, 2, TOTAL)
 
 
 def slide_solution(prs):
@@ -251,6 +257,7 @@ def slide_solution(prs):
     txt(sl, "15 REST-эндпоинтов  •  Streamlit-дашборд  •  PDF-отчёт  •  Сценарный анализ  •  Docker",
         Inches(0.3), Inches(6.35), Inches(12.7), Inches(0.9),
         font_size=15, bold=True, color=C_WHITE, align=PP_ALIGN.CENTER)
+    footer(sl, 3, TOTAL)
 
 
 def slide_architecture(prs):
@@ -306,9 +313,16 @@ def slide_predict(prs):
         "95% доверительный интервал",
         "Годовая сезонность",
         "Fallback: линейная регрессия",
-        "Компонент тренда на графике",
+        "",
+        "Метрики backtesting:",
+        "  MAE — абсолютная ошибка",
+        "  RMSE — среднеквадратичная",
+        "  MAPE — процентная ошибка",
     ]:
-        add_bullet(tf, f"• {item}", size=13, color=C_DARK)
+        add_bullet(tf, f"• {item}" if item and not item.startswith(" ") else item,
+                   size=13 if not item.startswith("  ") else 11,
+                   color=C_DARK if not item.startswith("Метрики") else C_GREEN,
+                   bold=item.startswith("Метрики"))
 
     # Колонка 2 — Risk Scoring
     rect(sl, Inches(4.65), Inches(1.4), Inches(4.1), Inches(5.8), C_WHITE)
@@ -347,15 +361,18 @@ def slide_predict(prs):
     for item in [
         "9 мер контроля (LOTO,",
         "  СИЗ, Высота, Огонь...)",
-        "Снижение нарушений",
-        "  по категориям Коргау",
         "× Pearson r = 0.415",
         "= ожид. снижение НС",
+        "Экономика: × 5 млн ₸",
         "",
-        "Экономика: избежанные",
-        "инциденты × 5 млн ₸",
+        "Кластеры причин:",
+        "TF-IDF + KMeans (n=6)",
+        "Silhouette = 0.835",
+        "Davies-Bouldin = 1.204",
     ]:
-        add_bullet(tf3, item, size=13, color=C_DARK)
+        add_bullet(tf3, item, size=13 if not item.startswith("Silhouette") else 12,
+                   color=C_GREEN if "0.835" in item or "Кластеры" in item else C_DARK,
+                   bold="Кластеры" in item or "Silhouette" in item)
 
 
 def slide_korgau(prs):
@@ -438,6 +455,7 @@ def slide_economic(prs):
     txt(sl, "ИТОГО:   ≈ 121 000 000 ₸  (~250 000 USD)  в год",
         Inches(0.3), Inches(6.45), Inches(12.7), Inches(0.7),
         font_size=20, bold=True, color=C_WHITE, align=PP_ALIGN.CENTER)
+    footer(sl, 7, TOTAL)
 
 
 def slide_tech(prs):
@@ -458,10 +476,10 @@ def slide_tech(prs):
 
     for i, (title, body, color) in enumerate(stack):
         col = i % 3
-        row = i // 2
+        row = i // 3
         x = Inches(0.3 + col * 4.35)
-        y = Inches(1.5 + row * 2.7)
-        rect(sl, x, y, Inches(4.1), Inches(2.45), color)
+        y = Inches(1.5 + row * 2.85)
+        rect(sl, x, y, Inches(4.1), Inches(2.6), color)
         txt(sl, title, x + Inches(0.15), y + Inches(0.12), Inches(3.8), Inches(0.45),
             font_size=15, bold=True, color=C_WHITE)
         rect(sl, x, y + Inches(0.58), Inches(4.1), Inches(0.03), C_WHITE)
@@ -556,25 +574,319 @@ def slide_results(prs):
     txt(sl, "KMG Hackathon 2026  •  github.com/Islambek201632838/kmg-hse",
         Inches(0.5), Inches(6.5), Inches(12), Inches(0.5),
         font_size=13, color=RGBColor(0x64, 0x74, 0x8b), align=PP_ALIGN.CENTER)
+    footer(sl, 10, TOTAL)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # MAIN
 # ══════════════════════════════════════════════════════════════════════════════
 
+def slide_criteria(prs):
+    """Обоснование по 6 критериям хакатона."""
+    sl = blank_slide(prs)
+    rect(sl, 0, 0, W, H, C_LIGHT)
+    header_bar(sl, "Критерии хакатона — как мы их закрываем", "Раздел 6 ТЗ: 6 критериев оценки")
+
+    criteria = [
+        (C_DARK_BLUE, "25%", "Точность предиктива",
+         "Prophet + 95% CI · backtesting на истории\nПрогноз 12/6/3 мес · годовая сезонность"),
+        (C_BLUE, "20%", "Качество рекомендаций",
+         "Gemini топ-5 с приоритетом и обоснованием\nНа основе реальных паттернов (орг, тип, причины)"),
+        (C_GREEN, "15%", "UX дашборда",
+         "Streamlit 4 таба · 10+ Plotly-графиков\nParallel loading · KPI-карточки · фильтры"),
+        (C_AMBER, "15%", "Система алертов",
+         "4 уровня: CRITICAL (x2) · HIGH (>3 раз/тип)\nMEDIUM (YoY >15%) · LOW (информация)"),
+        (RGBColor(0x6a, 0x1b, 0x9a), "15%", "Интеграция API",
+         "FastAPI · 17 REST эндпоинтов · OpenAPI /docs\nDocker Compose · JSON · CORS"),
+        (C_RED, "10%", "Экономический эффект",
+         "Сценарное моделирование: 9 мер контроля\nPearson r=0.415 · ~121 млн ₸/год экономии"),
+    ]
+
+    for i, (color, weight, title, body) in enumerate(criteria):
+        col, row = i % 3, i // 3
+        lx = Inches(0.3 + col * 4.3)
+        ty = Inches(1.5 + row * 2.85)
+
+        rect(sl, lx, ty, Inches(4.0), Inches(2.6), C_WHITE)
+        rect(sl, lx, ty, Inches(4.0), Inches(0.5), color)
+
+        txt(sl, weight, lx + Inches(0.1), ty + Inches(0.05), Inches(0.8), Inches(0.4),
+            font_size=20, bold=True, color=C_WHITE)
+        txt(sl, title, lx + Inches(1.0), ty + Inches(0.08), Inches(2.8), Inches(0.35),
+            font_size=13, bold=True, color=C_WHITE)
+        txt(sl, body, lx + Inches(0.15), ty + Inches(0.6), Inches(3.7), Inches(1.8),
+            font_size=11, color=C_DARK)
+    footer(sl, 8, TOTAL)
+
+
+def slide_optimizations(prs):
+    """Оптимизации и улучшения."""
+    sl = blank_slide(prs)
+    rect(sl, 0, 0, W, H, C_LIGHT)
+    header_bar(sl, "Оптимизации", "Параллельность · кеш · алерт-правила · экспорт")
+
+    items = [
+        (C_GREEN, "ThreadPoolExecutor",
+         "Параллельная загрузка API-запросов в каждом табе\nTab 2: 4 запроса параллельно (trends + rankings + gvb + correlation)"),
+        (C_BLUE, "Кеш 10 мин + LRU",
+         "Streamlit @cache_data TTL=600s для API\n@lru_cache для Excel-парсинга (грузится один раз)"),
+        (C_AMBER, "Алерт: тип >3x за 30 дней",
+         "HIGH-алерт если один тип нарушения повторяется >3 раз\nАвтоматическое повышение уровня + причина в ответе"),
+        (C_RED, "Алерт: YoY рост >15%",
+         "MEDIUM-алерт если нарушения выросли на >15% к прошлому году\nСравнение 365 дней текущий vs предыдущий период"),
+        (RGBColor(0x6a, 0x1b, 0x9a), "Excel-экспорт (F-09)",
+         "5 листов: KPI, Alerts, Rankings, Risk Scores, Forecast\nopenpyxl + auto-width + color headers"),
+        (C_DARK_BLUE, "Korgau classify API (F-15)",
+         "POST /api/korgau/classify — AI-классификация наблюдений\n10 кластеров: СИЗ, высота, LOTO, пожарная и др."),
+    ]
+
+    for i, (color, title, body) in enumerate(items):
+        col, row = i % 2, i // 2
+        lx = Inches(0.3 + col * 6.52)
+        ty = Inches(1.5 + row * 1.85)
+
+        rect(sl, lx, ty, Inches(6.22), Inches(1.65), C_WHITE)
+        rect(sl, lx, ty, Inches(0.1), Inches(1.65), color)
+        txt(sl, title, lx + Inches(0.2), ty + Inches(0.1), Inches(5.8), Inches(0.35),
+            font_size=13, bold=True, color=color)
+        txt(sl, body, lx + Inches(0.2), ty + Inches(0.5), Inches(5.8), Inches(1.0),
+            font_size=11, color=C_DARK)
+
+
+def slide_ml_pipeline(prs):
+    """ML/AI пайплайн — что, зачем, как работает."""
+    sl = blank_slide(prs)
+    rect(sl, 0, 0, W, H, C_LIGHT)
+    header_bar(sl, "ML/AI пайплайн — как система предсказывает",
+               "От сырых данных к предиктивным решениям")
+
+    # Pipeline flow: 5 steps
+    steps = [
+        (C_DARK_BLUE, "1. ETL",
+         "xlsx → pandas\nОчистка: NaT, пропуски\nОбогащение: смены,\nстаж, тип, тяжесть"),
+        (C_BLUE, "2. Feature\nEngineering",
+         "Агрегация по месяцам\nRolling avg (3 мес)\nMoM % изменение\nСмена: день/вечер/ночь"),
+        (RGBColor(0x6a, 0x1b, 0x9a), "3. ML Models",
+         "Prophet: тренд + сезонность\nKMeans: кластеры причин\nPearson/Spearman: связь\nRisk Scoring: формула"),
+        (C_RED, "4. NLP / CV",
+         "Gemini Flash:\n• классификация инцидентов\n• рекомендации (топ-5)\n• анализ фото (Vision)"),
+        (C_GREEN, "5. Predict",
+         "Прогноз на 12 мес + 95% CI\nРиск-скор 0–100 по орг\nСценарий: мера → экономия\nАлерты: 4 уровня"),
+    ]
+
+    for i, (color, title, body) in enumerate(steps):
+        x = Inches(0.15 + i * 2.63)
+        rect(sl, x, Inches(1.45), Inches(2.45), Inches(3.2), color)
+        txt(sl, title, x + Inches(0.1), Inches(1.5), Inches(2.25), Inches(0.7),
+            font_size=13, bold=True, color=C_WHITE)
+        txt(sl, body, x + Inches(0.1), Inches(2.2), Inches(2.25), Inches(2.3),
+            font_size=10.5, color=RGBColor(0xcc, 0xdd, 0xff))
+        if i < 4:
+            txt(sl, "→", x + Inches(2.45), Inches(2.8), Inches(0.2), Inches(0.4),
+                font_size=18, bold=True, color=C_AMBER, align=PP_ALIGN.CENTER)
+
+    # Bottom: metrics
+    rect(sl, Inches(0.3), Inches(4.85), Inches(12.73), Inches(2.35), C_WHITE)
+    rect(sl, Inches(0.3), Inches(4.85), Inches(12.73), Inches(0.4), C_DARK_BLUE)
+    txt(sl, "Метрики качества ML-моделей", Inches(0.5), Inches(4.9), Inches(6), Inches(0.3),
+        font_size=12, bold=True, color=C_WHITE)
+
+    metrics = [
+        ("Prophet Forecast", "MAE / RMSE / MAPE", "Backtesting: fitted vs actual.\nНа мок-данных — in-sample. В продакшене — walk-forward CV"),
+        ("KMeans Кластеры", "Silhouette = 0.835", "От -1 до 1. >0.5 = хорошо, >0.7 = сильные кластеры.\nDavies-Bouldin = 1.204 (чем ниже тем лучше)"),
+        ("Корреляция", "Pearson r = 0.415", "Нарушения Коргау ↔ инциденты. Умеренная связь (17% дисперсии).\np-value < 0.05 — статистически значимо"),
+        ("Risk Scoring", "0–100 (4 уровня)", "Формула ТЗ: 0.35×incidents + 0.30×violations\n+ 0.20×trend + 0.15×severity. Min-max нормализация"),
+    ]
+    for i, (name, value, desc) in enumerate(metrics):
+        lx = Inches(0.4 + (i % 2) * 6.4)
+        ty = Inches(5.35 + (i // 2) * 0.9)
+        txt(sl, name, lx, ty, Inches(2.0), Inches(0.3), font_size=11, bold=True, color=C_DARK_BLUE)
+        txt(sl, value, lx + Inches(2.0), ty, Inches(1.8), Inches(0.3), font_size=11, bold=True, color=C_GREEN)
+        txt(sl, desc, lx + Inches(3.8), ty, Inches(2.5), Inches(0.8), font_size=9, color=C_GRAY)
+    footer(sl, 5, TOTAL)
+
+
+def slide_why_methods(prs):
+    """Почему выбраны именно эти методы."""
+    sl = blank_slide(prs)
+    rect(sl, 0, 0, W, H, C_LIGHT)
+    header_bar(sl, "Почему эти методы? Альтернативы и трейдоффы",
+               "Обоснование выбора Prophet, KMeans, Gemini, Risk Scoring")
+
+    comparisons = [
+        (C_DARK_BLUE, "Прогноз: Prophet",
+         "Выбрали Prophet\n• Работает с <36 месяцами данных\n• Автоматические changepoints\n• Встроенный 95% CI\n• Устойчив к пропускам",
+         "Альтернативы:\n• ARIMA — требует стационарность\n• LSTM — нужно >100 точек\n• Exp. Smoothing — нет CI\n• XGBoost — нет временной оси"),
+        (RGBColor(0x6a, 0x1b, 0x9a), "Кластеры: TF-IDF + KMeans",
+         "Выбрали TF-IDF + KMeans\n• Интерпретируемо: top-terms\n• Быстро: <1 сек на 500 текстов\n• Silhouette 0.835 (отлично)\n• Не нужна разметка",
+         "Альтернативы:\n• BERT embeddings — тяжёлый\n• LDA (topic model) — хуже для\n  коротких текстов\n• DBSCAN — не контролируемое K"),
+        (C_RED, "NLP: Gemini Flash",
+         "Выбрали Gemini LLM\n• Zero-shot: без обучения\n• Понимает русский + домен ОТ\n• Классификация + рекомендации\n  + CV-анализ фото в одной модели",
+         "Альтернативы:\n• Fine-tuned BERT — нужна разметка\n  (~1000 примеров на класс)\n• spaCy NER — только сущности\n• Regex — не масштабируется"),
+        (C_GREEN, "Сценарий: Pearson × меры",
+         "Выбрали корреляцию + формулу\n• Прозрачно для бизнеса\n• Pearson r=0.415 (p<0.05)\n• 9 мер × вес категории\n• Экономика: × 5 млн ₸/НС",
+         "Ограничения:\n• Корреляция ≠ причинность\n• r=0.415 = 17% дисперсии\n• Веса мер — экспертные\n• В продакшене → causal inference"),
+    ]
+
+    for i, (color, title, chosen, alt) in enumerate(comparisons):
+        col, row = i % 2, i // 2
+        lx = Inches(0.3 + col * 6.52)
+        ty = Inches(1.45 + row * 2.9)
+
+        rect(sl, lx, ty, Inches(6.22), Inches(2.7), C_WHITE)
+        rect(sl, lx, ty, Inches(6.22), Inches(0.45), color)
+        txt(sl, title, lx + Inches(0.15), ty + Inches(0.07), Inches(5.8), Inches(0.32),
+            font_size=13, bold=True, color=C_WHITE)
+
+        txt(sl, chosen, lx + Inches(0.15), ty + Inches(0.55), Inches(3.0), Inches(2.0),
+            font_size=10, color=C_DARK)
+        txt(sl, alt, lx + Inches(3.2), ty + Inches(0.55), Inches(2.9), Inches(2.0),
+            font_size=10, color=C_GRAY, italic=True)
+
+
+def slide_production(prs):
+    """Что меняется для продакшн данных."""
+    sl = blank_slide(prs)
+    rect(sl, 0, 0, W, H, C_LIGHT)
+    header_bar(sl, "Мок-данные → Продакшн: что меняется",
+               "Хакатон = proof of concept. Продакшн = другой уровень валидации")
+
+    items = [
+        (C_AMBER, "Сейчас (мок)", "Продакшн",
+         "220 инцидентов, <36 месяцев",
+         "1000+ инцидентов, 5+ лет истории → Prophet с годовой + недельной сезонностью"),
+        (C_AMBER, "Сейчас (мок)", "Продакшн",
+         "In-sample backtesting (MAE на train)",
+         "Walk-forward CV: train 80% → predict 20% → реальный MAE/RMSE/MAPE"),
+        (C_AMBER, "Сейчас (мок)", "Продакшн",
+         "k=6 кластеров (хардкод)",
+         "Elbow method + Silhouette sweep (k=2..15) → автовыбор оптимального K"),
+        (C_AMBER, "Сейчас (мок)", "Продакшн",
+         "Risk Score: экспертные веса 0.35/0.30/0.20/0.15",
+         "Logistic Regression / XGBoost обучен на экспертной разметке → SHAP feature importance"),
+        (C_AMBER, "Сейчас (мок)", "Продакшн",
+         "Gemini без валидации (zero-shot)",
+         "Тест на 100+ размеченных примерах: Precision/Recall/F1 > 0.85 для каждого типа"),
+        (C_AMBER, "Сейчас (мок)", "Продакшн",
+         "Pearson r=0.415 как causal",
+         "Partial correlation (контроль на размер орг) + Granger causality test + time-lag анализ"),
+    ]
+
+    for i, (color, tag_now, tag_prod, now_text, prod_text) in enumerate(items):
+        ty = Inches(1.45 + i * 0.95)
+        rect(sl, Inches(0.3), ty, Inches(12.73), Inches(0.85), C_WHITE if i % 2 == 0 else RGBColor(0xf5, 0xf8, 0xff))
+
+        rect(sl, Inches(0.3), ty, Inches(0.08), Inches(0.85), color)
+        txt(sl, now_text, Inches(0.5), ty + Inches(0.08), Inches(5.5), Inches(0.65),
+            font_size=11, color=C_DARK)
+        txt(sl, "→", Inches(6.1), ty + Inches(0.2), Inches(0.3), Inches(0.4),
+            font_size=16, bold=True, color=C_GREEN)
+        txt(sl, prod_text, Inches(6.5), ty + Inches(0.08), Inches(6.3), Inches(0.65),
+            font_size=11, color=C_GREEN, bold=True)
+    footer(sl, 9, TOTAL)
+
+
+def slide_glossary(prs):
+    """Глоссарий ML-терминов простым языком."""
+    sl = blank_slide(prs)
+    rect(sl, 0, 0, W, H, C_LIGHT)
+    header_bar(sl, "ML/AI — что это значит простым языком",
+               "Объяснение ключевых терминов для не-технических слушателей")
+
+    terms = [
+        (C_DARK_BLUE, "Prophet",
+         "Модель Facebook для прогноза временных рядов. Как Excel-тренд, но умнее —\n"
+         "учитывает сезонность (зима/лето), тренд (растёт/падает) и аномалии."),
+        (C_BLUE, "TF-IDF + KMeans",
+         "TF-IDF: превращает текст в числа — считает «насколько важно это слово в документе».\n"
+         "KMeans: группирует похожие тексты в кластеры. Как сортировка писем по темам."),
+        (C_GREEN, "Pearson r (корреляция)",
+         "Число от -1 до +1. Показывает связь двух величин. r=0.4 значит «когда нарушений\n"
+         "больше — инцидентов тоже больше, но не всегда». Это связь, не причина!"),
+        (C_AMBER, "Silhouette Score",
+         "Оценка качества кластеризации от -1 до 1. Наш 0.835 = «кластеры чёткие, группы\n"
+         "хорошо разделены». >0.7 = отлично, <0.3 = плохо."),
+        (C_RED, "MAE / RMSE / MAPE",
+         "Метрики ошибки прогноза. MAE: «в среднем ошибаемся на X инцидентов».\n"
+         "RMSE: то же, но штрафует большие ошибки сильнее. MAPE: ошибка в процентах."),
+        (RGBColor(0x6a, 0x1b, 0x9a), "Confidence Interval (95% CI)",
+         "Коридор прогноза: «мы на 95% уверены что реальное значение будет в этих границах».\n"
+         "Узкий CI = уверенный прогноз. Широкий CI = большая неопределённость."),
+        (C_DARK_BLUE, "Zero-shot (Gemini)",
+         "AI классифицирует текст БЕЗ обучения на наших данных. Мы просто описываем задачу\n"
+         "в промпте, и LLM применяет свои знания. Быстро, но нужно валидировать."),
+        (C_BLUE, "Risk Scoring",
+         "Формула: каждой организации присваивается балл 0–100 на основе 4 факторов:\n"
+         "частота инцидентов (35%) + нарушения (30%) + тренд (20%) + тяжесть (15%)."),
+    ]
+
+    for i, (color, term, desc) in enumerate(terms):
+        col, row = i % 2, i // 2
+        lx = Inches(0.3 + col * 6.52)
+        ty = Inches(1.45 + row * 1.45)
+
+        rect(sl, lx, ty, Inches(6.22), Inches(1.3), C_WHITE)
+        rect(sl, lx, ty, Inches(0.08), Inches(1.3), color)
+        txt(sl, term, lx + Inches(0.2), ty + Inches(0.05), Inches(2.0), Inches(0.3),
+            font_size=13, bold=True, color=color)
+        txt(sl, desc, lx + Inches(0.2), ty + Inches(0.38), Inches(5.8), Inches(0.85),
+            font_size=10, color=C_DARK)
+    footer(sl, 4, TOTAL)
+
+
+TOTAL = 10
+
+
+def slide_qr(prs):
+    """QR код для live демо."""
+    sl = blank_slide(prs)
+    rect(sl, 0, 0, W, H, C_DARK_BLUE)
+    rect(sl, 0, Inches(6.2), W, Inches(0.15), C_AMBER)
+
+    txt(sl, "Попробуйте прямо сейчас", Inches(0.5), Inches(0.4), Inches(12.3), Inches(0.7),
+        font_size=34, bold=True, color=C_WHITE, align=PP_ALIGN.CENTER)
+    txt(sl, "Откройте камеру телефона и наведите на QR-код",
+        Inches(0.5), Inches(1.1), Inches(12.3), Inches(0.4),
+        font_size=15, color=C_AMBER, align=PP_ALIGN.CENTER)
+
+    try:
+        sl.shapes.add_picture("qr_streamlit.png",
+                              Inches(4.67), Inches(1.7), width=Inches(4.0), height=Inches(4.0))
+    except Exception:
+        rect(sl, Inches(4.67), Inches(1.7), Inches(4.0), Inches(4.0), C_WHITE)
+
+    txt(sl, "http://89.207.255.254:8502",
+        Inches(0.5), Inches(5.85), Inches(12.3), Inches(0.4),
+        font_size=16, bold=True, color=C_WHITE, align=PP_ALIGN.CENTER)
+    txt(sl, "Инциденты · Карты Коргау · Предикт · Алерты · PDF/Excel",
+        Inches(0.5), Inches(6.35), Inches(12.3), Inches(0.35),
+        font_size=12, color=RGBColor(0xaa, 0xcc, 0xff), align=PP_ALIGN.CENTER)
+    footer(sl, 9, TOTAL)
+
+
 def build():
     prs = new_prs()
 
-    slide_title(prs)
-    slide_problem(prs)
-    slide_solution(prs)
-    slide_architecture(prs)
-    slide_predict(prs)
-    slide_korgau(prs)
-    slide_economic(prs)
-    slide_tech(prs)
-    slide_demo(prs)
-    slide_results(prs)
+    # 3-min pitch: 10 слайдов
+    # 0:00-0:30  Титул + Проблема
+    slide_title(prs)             # 1
+    slide_problem(prs)           # 2
+
+    # 0:30-1:00  Решение + ML
+    slide_solution(prs)          # 3
+    slide_glossary(prs)          # 4 — ML термины простым языком
+    slide_ml_pipeline(prs)       # 5 — pipeline + метрики
+
+    # 1:00-2:00  LIVE ДЕМО (переключиться на Streamlit)
+    slide_qr(prs)                # 6 — QR код → жюри открывает на телефоне
+
+    # 2:00-2:30  Экономика + критерии
+    slide_economic(prs)          # 7
+    slide_criteria(prs)          # 8
+
+    # 2:30-3:00  Продакшн + Спасибо
+    slide_production(prs)        # 9
+    slide_results(prs)           # 10
 
     out = "HSE_Presentation.pptx"
     prs.save(out)

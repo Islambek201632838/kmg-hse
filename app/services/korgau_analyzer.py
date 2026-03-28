@@ -229,6 +229,13 @@ def get_correlation_with_incidents() -> dict:
         org_pearson_r, _ = stats.pearsonr(org_agg["violations"], org_agg["incidents"])
         org_pearson = round(float(org_pearson_r), 3)
 
+    # Scatter data — по месяцам для организаций, которые есть в обоих датасетах
+    # (outer join давал мусор: орги без пересечения)
+    org_scatter = merged[["_org", "violations", "incidents"]].copy()
+    org_scatter["_org"] = org_scatter["_org"].astype(str)
+    # Добавляем номер месяца для подписи
+    org_scatter["label"] = org_scatter["_org"].str[:20] + " (мес " + (org_scatter.index + 1).astype(str) + ")"
+
     return {
         "pearson_r": round(float(pearson_r), 3),
         "pearson_p": round(float(pearson_p), 4),
@@ -236,5 +243,5 @@ def get_correlation_with_incidents() -> dict:
         "spearman_p": round(float(spearman_p), 4),
         "n_points": len(merged),
         "org_level_pearson": org_pearson,
-        "scatter_data": merged[["_org", "violations", "incidents"]].to_dict("records"),
+        "scatter_data": org_scatter[["_org", "label", "violations", "incidents"]].to_dict("records"),
     }

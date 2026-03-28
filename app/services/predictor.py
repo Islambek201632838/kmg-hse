@@ -102,6 +102,16 @@ def get_forecast(periods: int = 12) -> dict:
     else:
         trend_data = []
 
+    # Backtesting: MAE / RMSE на исторических данных (fitted vs actual)
+    hist_with_y = history.dropna(subset=["y", "yhat"])
+    if len(hist_with_y) > 0:
+        residuals = hist_with_y["y"] - hist_with_y["yhat"]
+        mae = round(float(residuals.abs().mean()), 2)
+        rmse = round(float(np.sqrt((residuals ** 2).mean())), 2)
+        mape = round(float((residuals.abs() / hist_with_y["y"].replace(0, 1)).mean() * 100), 1)
+    else:
+        mae = rmse = mape = None
+
     return {
         "history": history[["ds", "y", "yhat", "yhat_lower", "yhat_upper"]].to_dict("records"),
         "forecast": future_fc[["ds", "yhat", "yhat_lower", "yhat_upper"]].to_dict("records"),
@@ -109,6 +119,7 @@ def get_forecast(periods: int = 12) -> dict:
         "periods": periods,
         "total_historical_months": len(monthly),
         "engine": engine,
+        "metrics": {"mae": mae, "rmse": rmse, "mape_pct": mape},
     }
 
 

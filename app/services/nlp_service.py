@@ -35,7 +35,7 @@ def classify_incident(description: str) -> str:
   "summary": "<краткое резюме на русском, 1-2 предложения>"
 }}
 
-Описание: {description[:800]}"""
+Описание: {description}"""
     return _generate(prompt)
 
 

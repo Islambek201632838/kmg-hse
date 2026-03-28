@@ -78,7 +78,17 @@ def get_cause_clusters(n_clusters: int = 6) -> list[dict]:
             "examples": examples,
         })
 
-    return sorted(clusters, key=lambda x: x["count"], reverse=True)
+    # Silhouette Score — качество кластеризации (-1..1, чем выше тем лучше)
+    from sklearn.metrics import silhouette_score, davies_bouldin_score
+    sil = round(float(silhouette_score(X, labels)), 3) if len(set(labels)) > 1 else 0.0
+    db = round(float(davies_bouldin_score(X.toarray(), labels)), 3) if len(set(labels)) > 1 else 0.0
+
+    result = sorted(clusters, key=lambda x: x["count"], reverse=True)
+    # Добавляем метрики в первый элемент (или отдельно)
+    for c in result:
+        c["silhouette_score"] = sil
+        c["davies_bouldin_score"] = db
+    return result
 
 
 def get_patterns() -> dict:
