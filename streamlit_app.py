@@ -135,6 +135,22 @@ with tab1:
         fig_cl.update_layout(height=280, margin=dict(t=10, b=10))
         st.plotly_chart(fig_cl, use_container_width=True)
 
+    # AI-рекомендации (по кнопке)
+    st.divider()
+    st.subheader("💡 AI-рекомендации по снижению травматизма")
+    if st.button("Сгенерировать рекомендации (Gemini)", type="secondary"):
+        with st.spinner("Gemini генерирует рекомендации..."):
+            recs = api_get("/api/incidents/recommendations")
+        if recs:
+            for rec in recs:
+                prio_icon = {"Высокий": "🔴", "Средний": "🟡", "Низкий": "🟢"}.get(rec.get("priority", ""), "⚪")
+                with st.container():
+                    st.markdown(f"**{prio_icon} {rec.get('priority', '')}** — {rec.get('action', '')}")
+                    st.caption(f"Обоснование: {rec.get('rationale', '')}")
+                    st.info(f"Ожидаемый эффект: {rec.get('expected_effect', '')}")
+        else:
+            st.warning("Не удалось получить рекомендации")
+
     # Объединённый анализ: текст + фото
     st.divider()
     st.subheader("🤖 AI-анализ инцидента (текст и/или фото)")
